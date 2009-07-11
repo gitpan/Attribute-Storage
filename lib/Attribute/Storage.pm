@@ -1,14 +1,15 @@
 #  You may distribute under the terms of either the GNU General Public License
 #  or the Artistic License (the same terms as Perl itself)
 #
-#  (C) Paul Evans, 2008 -- leonerd@leonerd.org.uk
+#  (C) Paul Evans, 2008,2009 -- leonerd@leonerd.org.uk
 
 package Attribute::Storage;
 
 use strict;
+use warnings;
 use Carp;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 =head1 NAME
 
@@ -112,7 +113,8 @@ Each attribute that the defining package wants to define should be done using
 a marked subroutine, in a way similar to L<Attribute::Handlers>. When a sub in
 the using package is marked with such an attribute, the code is executed,
 passing in the arguments. Whatever it returns is stored, to be returned later
-when queried by C<get_subattr> or C<get_subattrs>.
+when queried by C<get_subattr> or C<get_subattrs>. Only C<CODE> attributes are
+supported.
 
  sub AttributeName : ATTR(CODE)
  {
@@ -155,6 +157,19 @@ Note that it is impossible to distinguish
  sub somefunc : NameMap   { ... }
  sub somefunc : NameMap() { ... }
 
+It is possible to create attributes that do not parse their argument as a perl
+list expression, instead they just pass the plain string as a single argument.
+
+ sub Title : ATTR(CODE,RAWDATA)
+ {
+    my $package = shift;
+    my ( $text ) = @_;
+
+    return $text;
+ }
+
+ sub thingy : Title(Here is the title for thingy) { ... }
+
 =cut
 
 sub handle_attr
@@ -165,32 +180,57 @@ sub handle_attr
 
    if( defined $opts ) {
       s/^\(//, s/\)$// for $opts; # trim wrapping ()
+   }
 
-      $opts = do {
+   my $cv;
+   my $type;
+   if( $attrname eq "ATTR" ) {
+      $type = { raw => 1 };
+   }
+   else {
+      $cv = $package->can( $attrname ) or return 1;
+      $type = $attrtype{$cv} or return 1;
+   }
+
+   my @opts;
+   if( $type->{raw} ) {
+      @opts = ( $opts );
+   }
+   else {
+      @opts = do {
          no strict;
-         eval "[$opts]";
+         eval $opts;
       };
 
-      if( !defined $opts ) {
+      if( $@ ) {
          my ( $msg ) = $@ =~ m/^(.*) at \(eval \d+\) line \d+\.$/;
          croak "Unable to parse $attrname - $msg";
       }
    }
 
    if( $attrname eq "ATTR" ) {
-      # TODO: options etc...
-      $attrtype{$ref} = 1;
-      return 0;
+      my %type;
+      foreach ( split m/\s*,\s*/, $opts[0] ) {
+         m/^CODE$/ and next;
+
+         m/^SCALAR|HASH|ARRAY$/ and 
+            croak "Only CODE attributes are supported currently";
+
+         m/^RAWDATA$/ and
+            ( $type{raw} = 1 ), next;
+
+         croak "Unrecognised attribute option $_";
+      }
+
+      $attrtype{$ref} = \%type;
    }
+   else {
+      my $value = eval { $cv->( $package, @opts ) };
+      die $@ if $@;
+      defined $value or return 1;
 
-   my $cv = $package->can( $attrname ) or return 1;
-   $attrtype{$cv} or return 1;
-
-   my $value = eval { $cv->( $package, @$opts ) };
-   die $@ if $@;
-   defined $value or return 1;
-
-   $attrvalues{$ref}->{$attrname} = $value;
+      $attrvalues{$ref}->{$attrname} = $value;
+   }
 
    return 0;
 }
@@ -254,10 +294,11 @@ sub get_subattr
    return $attrvalues{$cv} ? $attrvalues{$cv}->{$attr} : undef;
 }
 
+# Keep perl happy; keep Britain tidy
 1;
 
 __END__
 
 =head1 AUTHOR
 
-Paul Evans E<lt>leonerd@leonerd.org.ukE<gt>
+Paul Evans <leonerd@leonerd.org.uk>
