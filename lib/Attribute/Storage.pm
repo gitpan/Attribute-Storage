@@ -9,7 +9,10 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
+
+use base qw( DynaLoader );
+__PACKAGE__->DynaLoader::bootstrap( $VERSION );
 
 =head1 NAME
 
@@ -102,19 +105,17 @@ sub import
    }
 }
 
-# These have to be 'our' so that code reload works
-
-our %attrtype;   # {$cv} = 1
-our %attrvalues; # {$cv} = $value
-
 =head1 ATTRIBUTES
 
 Each attribute that the defining package wants to define should be done using
 a marked subroutine, in a way similar to L<Attribute::Handlers>. When a sub in
 the using package is marked with such an attribute, the code is executed,
 passing in the arguments. Whatever it returns is stored, to be returned later
-when queried by C<get_subattr> or C<get_subattrs>. Only C<CODE> attributes are
-supported.
+when queried by C<get_subattr> or C<get_subattrs>. The return value must be
+defined, or else the attribute will be marked as a compile error for perl to
+handle accordingly.
+
+Only C<CODE> attributes are supported.
 
  sub AttributeName : ATTR(CODE)
  {
@@ -189,7 +190,8 @@ sub handle_attr
    }
    else {
       $cv = $package->can( $attrname ) or return 1;
-      $type = $attrtype{$cv} or return 1;
+      my $attrs = _get_attr_hash( $cv, 0 ) or return 1;
+      $type = $attrs->{ATTR} or return 1;
    }
 
    my @opts;
@@ -199,7 +201,7 @@ sub handle_attr
    else {
       @opts = do {
          no strict;
-         eval $opts;
+         defined $opts ? eval $opts : ();
       };
 
       if( $@ ) {
@@ -222,14 +224,14 @@ sub handle_attr
          croak "Unrecognised attribute option $_";
       }
 
-      $attrtype{$ref} = \%type;
+      _get_attr_hash( $ref, 1 )->{ATTR} = \%type;
    }
    else {
       my $value = eval { $cv->( $package, @opts ) };
       die $@ if $@;
       defined $value or return 1;
 
-      $attrvalues{$ref}->{$attrname} = $value;
+      _get_attr_hash( $ref, 1 )->{$attrname} = $value;
    }
 
    return 0;
@@ -245,6 +247,9 @@ Returns a HASH reference containing all the attributes defined on the given
 sub. The sub should either be passed as a CODE reference, or as a name in the
 caller's package. If no attributes are defined, a reference to an empty HASH
 is returned.
+
+The returned HASH reference is a new shallow clone, the caller may modify this
+hash arbitrarily without breaking the stored data, or other users of it.
 
 =cut
 
@@ -264,7 +269,7 @@ sub get_subattrs
       defined $cv or croak "$caller has no sub $sub";
    }
 
-   return { %{ $attrvalues{$cv} || {} } }; # clone
+   return { %{ _get_attr_hash( $cv, 0 ) || {} } }; # clone
 }
 
 =head2 $value = get_subattr( $sub, $attrname )
@@ -291,7 +296,8 @@ sub get_subattr
       defined $cv or croak "$caller has no sub $sub";
    }
 
-   return $attrvalues{$cv} ? $attrvalues{$cv}->{$attr} : undef;
+   my $attrhash = _get_attr_hash( $cv, 0 ) or return undef;
+   return $attrhash->{$attr};
 }
 
 # Keep perl happy; keep Britain tidy

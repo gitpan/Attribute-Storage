@@ -1,5 +1,10 @@
 Revision history for Attribute-Storage
 
+0.03    CHANGES:
+         * Use Magic to implement value storage behind CVs so that destruction
+           correctly frees old values on code reload or dropping anonymous
+           subs
+
 0.02    CHANGES:
          * Allow RAWDATA for unparsed attributes
          * Various updates to keep CPANTS happy

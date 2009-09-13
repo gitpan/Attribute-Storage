@@ -9,8 +9,8 @@ my $build = Module::Build->new
    requires => {
                },
    build_requires => {
-                 'Test::More' => 0,
-                 'Test::Refcount' => 0,
+                 'Test::More'       => 0,
+                 'Test::NoWarnings' => 0,
                },
    license => 'perl',
    create_makefile_pl => 'traditional',

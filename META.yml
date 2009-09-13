@@ -1,6 +1,6 @@
 ---
 name: Attribute-Storage
-version: 0.02
+version: 0.03
 author:
   - 'Paul Evans <leonerd@leonerd.org.uk>'
 abstract: |-
@@ -11,12 +11,14 @@ resources:
   license: http://dev.perl.org/licenses/
 build_requires:
   Test::More: 0
-  Test::Refcount: 0
+  Test::NoWarnings: 0
+configure_requires:
+  Module::Build: 0.340201
 provides:
   Attribute::Storage:
     file: lib/Attribute/Storage.pm
-    version: 0.02
-generated_by: Module::Build version 0.33
+    version: 0.03
+generated_by: Module::Build version 0.340201
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
   version: 1.4

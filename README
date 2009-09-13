@@ -59,8 +59,11 @@ ATTRIBUTES
     using a marked subroutine, in a way similar to Attribute::Handlers. When
     a sub in the using package is marked with such an attribute, the code is
     executed, passing in the arguments. Whatever it returns is stored, to be
-    returned later when queried by "get_subattr" or "get_subattrs". Only
-    "CODE" attributes are supported.
+    returned later when queried by "get_subattr" or "get_subattrs". The
+    return value must be defined, or else the attribute will be marked as a
+    compile error for perl to handle accordingly.
+
+    Only "CODE" attributes are supported.
 
      sub AttributeName : ATTR(CODE)
      {
@@ -124,6 +127,10 @@ FUNCTIONS
     given sub. The sub should either be passed as a CODE reference, or as a
     name in the caller's package. If no attributes are defined, a reference
     to an empty HASH is returned.
+
+    The returned HASH reference is a new shallow clone, the caller may
+    modify this hash arbitrarily without breaking the stored data, or other
+    users of it.
 
   $value = get_subattr( $sub, $attrname )
     Returns the value of a single named attribute on the given sub. The sub
