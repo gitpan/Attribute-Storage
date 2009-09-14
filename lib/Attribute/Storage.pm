@@ -9,14 +9,14 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 use base qw( DynaLoader );
 __PACKAGE__->DynaLoader::bootstrap( $VERSION );
 
 =head1 NAME
 
-C<Attribute::Storage> - store and access named attributes about CODE
+C<Attribute::Storage> - declare and retrieve named attributes about CODE
 references
 
 =head1 SYNOPSIS
@@ -115,7 +115,7 @@ when queried by C<get_subattr> or C<get_subattrs>. The return value must be
 defined, or else the attribute will be marked as a compile error for perl to
 handle accordingly.
 
-Only C<CODE> attributes are supported.
+Only C<CODE> attributes are supported at present.
 
  sub AttributeName : ATTR(CODE)
  {
@@ -126,10 +126,10 @@ Only C<CODE> attributes are supported.
  }
 
 At attachment time, the optional string that may appear within brackets
-following the attribute's name is parsed as a Perl expression in array
-context. If this succeeds, the values are passed in a list to the handling
-code. If this fails, an error is returned to the perl compiler. If no string
-is present, then an empty list is passed to the handling code.
+following the attribute's name is parsed as a Perl expression in list context.
+If this succeeds, the values are passed as a list to the handling code. If
+this fails, an error is returned to the perl compiler. If no string is
+present, then an empty list is passed to the handling code.
 
  package Defining;
 
@@ -160,6 +160,7 @@ Note that it is impossible to distinguish
 
 It is possible to create attributes that do not parse their argument as a perl
 list expression, instead they just pass the plain string as a single argument.
+For this, add the C<RAWDATA> flag to the C<ATTR()> list.
 
  sub Title : ATTR(CODE,RAWDATA)
  {

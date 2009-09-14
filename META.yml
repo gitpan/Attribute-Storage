@@ -1,10 +1,10 @@
 ---
 name: Attribute-Storage
-version: 0.03
+version: 0.04
 author:
   - 'Paul Evans <leonerd@leonerd.org.uk>'
 abstract: |-
-  store and access named attributes about CODE
+  declare and retrieve named attributes about CODE
   references
 license: perl
 resources:
@@ -13,12 +13,12 @@ build_requires:
   Test::More: 0
   Test::NoWarnings: 0
 configure_requires:
-  Module::Build: 0.340201
+  Module::Build: 0.35
 provides:
   Attribute::Storage:
     file: lib/Attribute/Storage.pm
-    version: 0.03
-generated_by: Module::Build version 0.340201
+    version: 0.04
+generated_by: Module::Build version 0.35
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
   version: 1.4

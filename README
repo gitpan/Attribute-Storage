@@ -1,5 +1,5 @@
 NAME
-    "Attribute::Storage" - store and access named attributes about CODE
+    "Attribute::Storage" - declare and retrieve named attributes about CODE
     references
 
 SYNOPSIS
@@ -63,7 +63,7 @@ ATTRIBUTES
     return value must be defined, or else the attribute will be marked as a
     compile error for perl to handle accordingly.
 
-    Only "CODE" attributes are supported.
+    Only "CODE" attributes are supported at present.
 
      sub AttributeName : ATTR(CODE)
      {
@@ -74,8 +74,8 @@ ATTRIBUTES
      }
 
     At attachment time, the optional string that may appear within brackets
-    following the attribute's name is parsed as a Perl expression in array
-    context. If this succeeds, the values are passed in a list to the
+    following the attribute's name is parsed as a Perl expression in list
+    context. If this succeeds, the values are passed as a list to the
     handling code. If this fails, an error is returned to the perl compiler.
     If no string is present, then an empty list is passed to the handling
     code.
@@ -109,7 +109,7 @@ ATTRIBUTES
 
     It is possible to create attributes that do not parse their argument as
     a perl list expression, instead they just pass the plain string as a
-    single argument.
+    single argument. For this, add the "RAWDATA" flag to the "ATTR()" list.
 
      sub Title : ATTR(CODE,RAWDATA)
      {
