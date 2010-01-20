@@ -1,5 +1,8 @@
 Revision history for Attribute-Storage
 
+0.05    CHANGES:
+         * Use XSLoader instead of DynaLoader
+
 0.04    BUGFIXES:
          * Need to use Module::Build to build it now, generate a 'small'
            Makefile.PL rather than 'traditional'
