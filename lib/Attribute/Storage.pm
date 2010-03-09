@@ -10,7 +10,7 @@ use warnings;
 
 use Carp;
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 require XSLoader;
 XSLoader::load( __PACKAGE__, $VERSION );
@@ -26,7 +26,7 @@ references
 
  use Attribute::Storage;
 
- sub Title : ATTR(CODE)
+ sub Title :ATTR(CODE)
  {
     my $package = shift;
     my ( $title ) = @_;
@@ -41,7 +41,7 @@ references
  use Attribute::Storage qw( get_subattr );
  use My::Package;
 
- sub myfunc : Title('The title of my function')
+ sub myfunc :Title('The title of my function')
  {
     ...
  }
@@ -70,7 +70,8 @@ C<Attribute::Storage> immediately executes the attribute handling code at
 compile-time.  C<Attribute::Handlers> defers invocation so it can look up the
 symbolic name of the sub the attribute is attached to. An upshot here is that
 the invoked code in C<Attribute::Storage> does not know the name of the sub it
-attaches to.
+attaches to. Another is that C<Attribute::Storage> works just as well on
+anonymous subs as named ones.
 
 =item *
 
@@ -118,7 +119,7 @@ handle accordingly.
 
 Only C<CODE> attributes are supported at present.
 
- sub AttributeName : ATTR(CODE)
+ sub AttributeName :ATTR(CODE)
  {
     my $package = shift;
     my ( $attr, $args, $here ) = @_;
@@ -134,7 +135,7 @@ present, then an empty list is passed to the handling code.
 
  package Defining;
 
- sub NameMap : ATTR(CODE)
+ sub NameMap :ATTR(CODE)
  {
     my $package = shift;
     my @strings = @_;
@@ -146,7 +147,7 @@ present, then an empty list is passed to the handling code.
 
  use Defining;
 
- sub somefunc : NameMap("foo=FOO","bar=BAR","splot=WIBBLE") { ... }
+ sub somefunc :NameMap("foo=FOO","bar=BAR","splot=WIBBLE") { ... }
 
  my $map = get_subattr("somefunc", "NameMap");
  # Will yield:
@@ -156,14 +157,14 @@ present, then an empty list is passed to the handling code.
 
 Note that it is impossible to distinguish
 
- sub somefunc : NameMap   { ... }
- sub somefunc : NameMap() { ... }
+ sub somefunc :NameMap   { ... }
+ sub somefunc :NameMap() { ... }
 
 It is possible to create attributes that do not parse their argument as a perl
 list expression, instead they just pass the plain string as a single argument.
 For this, add the C<RAWDATA> flag to the C<ATTR()> list.
 
- sub Title : ATTR(CODE,RAWDATA)
+ sub Title :ATTR(CODE,RAWDATA)
  {
     my $package = shift;
     my ( $text ) = @_;
@@ -171,7 +172,57 @@ For this, add the C<RAWDATA> flag to the C<ATTR()> list.
     return $text;
  }
 
- sub thingy : Title(Here is the title for thingy) { ... }
+ sub thingy :Title(Here is the title for thingy) { ... }
+
+Normally it is an error to attempt to apply the same attribute more than once
+to the same function. Sometimes however, it would make sense for an attribute
+to be applied many times. If the C<ATTR()> list is given the C<MULTI> flag,
+then applying it more than once will be allowed. Each invocation of the
+handling code will be given the previous value that was returned, or C<undef>
+for the first time. It is up to the code to perform whatever merging logic is
+required.
+
+ sub Description :ATTR(CODE,MULTI,RAWDATA)
+ {
+    my $package = shift;
+    my ( $olddesc, $more ) = @_;
+
+    return defined $olddesc ? "$olddesc$more\n" : "$more\n";
+ }
+
+ sub Argument :ATTR(CODE,MULTI)
+ {
+    my $package = shift;
+    my ( $args, $argname ) = @_;
+
+    push @$args, $argname;
+    return $args;
+ }
+
+ sub Option :ATTR(CODE,MULTI)
+ {
+    my $package = shift;
+    my ( $opts, $optname ) = @_;
+
+    $opts and exists $opts->{$optname} and
+       croak "Already have the $optname option";
+
+    $opts->{$optname}++;
+    return $opts;
+ }
+
+ ...
+
+ sub do_copy
+    :Description(Copy from SOURCE to DESTINATION)
+    :Description(Optionally preserves attributes)
+    :Argument("SOURCE")
+    :Argument("DESTINATION")
+    :Option("attrs")
+    :Option("verbose")
+ {
+    ...
+ }
 
 =cut
 
@@ -212,6 +263,16 @@ sub handle_attr
       }
    }
 
+   my $attrs = _get_attr_hash( $ref, 1 );
+
+   if( $type->{multi} ) {
+      unshift @opts, $attrs->{$attrname};
+   }
+   else {
+      exists $attrs->{$attrname} and 
+         croak "Already have the $attrname attribute";
+   }
+
    if( $attrname eq "ATTR" ) {
       my %type;
       foreach ( split m/\s*,\s*/, $opts[0] ) {
@@ -223,17 +284,20 @@ sub handle_attr
          m/^RAWDATA$/ and
             ( $type{raw} = 1 ), next;
 
+         m/^MULTI$/ and
+            ( $type{multi} = 1 ), next;
+
          croak "Unrecognised attribute option $_";
       }
 
-      _get_attr_hash( $ref, 1 )->{ATTR} = \%type;
+      $attrs->{ATTR} = \%type;
    }
    else {
       my $value = eval { $cv->( $package, @opts ) };
       die $@ if $@;
       defined $value or return 1;
 
-      _get_attr_hash( $ref, 1 )->{$attrname} = $value;
+      $attrs->{$attrname} = $value;
    }
 
    return 0;

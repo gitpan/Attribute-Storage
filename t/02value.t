@@ -5,7 +5,7 @@ use Test::More tests => 1;
 
 use Attribute::Storage qw( get_subattr );
 
-sub Number : ATTR(CODE)
+sub Number :ATTR(CODE)
 {
    my $package = shift;
    my ( @values ) = @_;
@@ -16,7 +16,7 @@ sub Number : ATTR(CODE)
    return $total;
 }
 
-sub myfunc : Number(1,2,3,4,5)
+sub myfunc :Number(1,2,3,4,5)
 {
 }
 

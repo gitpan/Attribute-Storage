@@ -5,7 +5,7 @@ use Test::More tests => 1;
 
 use Attribute::Storage qw( get_subattr );
 
-sub Title : ATTR(CODE,RAWDATA)
+sub Title :ATTR(CODE,RAWDATA)
 {
    my $package = shift;
    my ( $text ) = @_;
@@ -14,7 +14,7 @@ sub Title : ATTR(CODE,RAWDATA)
 }
 
 # This title text would be a perl syntax error if it were not RAWDATA
-sub myfunc : Title(Here is my raw text)
+sub myfunc :Title(Here is my raw text)
 {
 }
 

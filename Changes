@@ -1,5 +1,9 @@
 Revision history for Attribute-Storage
 
+0.06    CHANGES:
+         * Implement MULTI attribute flag; allows attributes to be invoked
+           multiple times per marked sub
+
 0.05    CHANGES:
          * Use XSLoader instead of DynaLoader
 

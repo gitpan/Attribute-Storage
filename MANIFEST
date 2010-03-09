@@ -12,4 +12,5 @@ t/01simple.t
 t/02value.t
 t/03raw.t
 t/04free.t
+t/05multi.t
 t/99pod.t

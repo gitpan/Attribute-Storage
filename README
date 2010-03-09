@@ -7,7 +7,7 @@ SYNOPSIS
 
      use Attribute::Storage;
 
-     sub Title : ATTR(CODE)
+     sub Title :ATTR(CODE)
      {
         my $package = shift;
         my ( $title ) = @_;
@@ -22,7 +22,7 @@ SYNOPSIS
      use Attribute::Storage qw( get_subattr );
      use My::Package;
 
-     sub myfunc : Title('The title of my function')
+     sub myfunc :Title('The title of my function')
      {
         ...
      }
@@ -46,7 +46,9 @@ DESCRIPTION
         code at compile-time. "Attribute::Handlers" defers invocation so it
         can look up the symbolic name of the sub the attribute is attached
         to. An upshot here is that the invoked code in "Attribute::Storage"
-        does not know the name of the sub it attaches to.
+        does not know the name of the sub it attaches to. Another is that
+        "Attribute::Storage" works just as well on anonymous subs as named
+        ones.
 
     *   "Attribute::Storage" is safe to use on code that will be reloaded,
         because it executes handlers immediately. "Attribute::Handlers" will
@@ -65,7 +67,7 @@ ATTRIBUTES
 
     Only "CODE" attributes are supported at present.
 
-     sub AttributeName : ATTR(CODE)
+     sub AttributeName :ATTR(CODE)
      {
         my $package = shift;
         my ( $attr, $args, $here ) = @_;
@@ -82,7 +84,7 @@ ATTRIBUTES
 
      package Defining;
 
-     sub NameMap : ATTR(CODE)
+     sub NameMap :ATTR(CODE)
      {
         my $package = shift;
         my @strings = @_;
@@ -94,7 +96,7 @@ ATTRIBUTES
 
      use Defining;
 
-     sub somefunc : NameMap("foo=FOO","bar=BAR","splot=WIBBLE") { ... }
+     sub somefunc :NameMap("foo=FOO","bar=BAR","splot=WIBBLE") { ... }
 
      my $map = get_subattr("somefunc", "NameMap");
      # Will yield:
@@ -104,14 +106,14 @@ ATTRIBUTES
 
     Note that it is impossible to distinguish
 
-     sub somefunc : NameMap   { ... }
-     sub somefunc : NameMap() { ... }
+     sub somefunc :NameMap   { ... }
+     sub somefunc :NameMap() { ... }
 
     It is possible to create attributes that do not parse their argument as
     a perl list expression, instead they just pass the plain string as a
     single argument. For this, add the "RAWDATA" flag to the "ATTR()" list.
 
-     sub Title : ATTR(CODE,RAWDATA)
+     sub Title :ATTR(CODE,RAWDATA)
      {
         my $package = shift;
         my ( $text ) = @_;
@@ -119,7 +121,57 @@ ATTRIBUTES
         return $text;
      }
 
-     sub thingy : Title(Here is the title for thingy) { ... }
+     sub thingy :Title(Here is the title for thingy) { ... }
+
+    Normally it is an error to attempt to apply the same attribute more than
+    once to the same function. Sometimes however, it would make sense for an
+    attribute to be applied many times. If the "ATTR()" list is given the
+    "MULTI" flag, then applying it more than once will be allowed. Each
+    invocation of the handling code will be given the previous value that
+    was returned, or "undef" for the first time. It is up to the code to
+    perform whatever merging logic is required.
+
+     sub Description :ATTR(CODE,MULTI,RAWDATA)
+     {
+        my $package = shift;
+        my ( $olddesc, $more ) = @_;
+
+        return defined $olddesc ? "$olddesc$more\n" : "$more\n";
+     }
+
+     sub Argument :ATTR(CODE,MULTI)
+     {
+        my $package = shift;
+        my ( $args, $argname ) = @_;
+
+        push @$args, $argname;
+        return $args;
+     }
+
+     sub Option :ATTR(CODE,MULTI)
+     {
+        my $package = shift;
+        my ( $opts, $optname ) = @_;
+
+        $opts and exists $opts->{$optname} and
+           croak "Already have the $optname option";
+
+        $opts->{$optname}++;
+        return $opts;
+     }
+
+     ...
+
+     sub do_copy
+        :Description(Copy from SOURCE to DESTINATION)
+        :Description(Optionally preserves attributes)
+        :Argument("SOURCE")
+        :Argument("DESTINATION")
+        :Option("attrs")
+        :Option("verbose")
+     {
+        ...
+     }
 
 FUNCTIONS
   $attrs = get_subattrs( $sub )
