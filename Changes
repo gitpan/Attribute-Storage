@@ -1,5 +1,9 @@
 Revision history for Attribute-Storage
 
+0.07    CHANGES:
+         * Implement NAME attribute flag; allows attribute handling functions
+           to know the name of the function they are being applied to
+
 0.06    CHANGES:
          * Implement MULTI attribute flag; allows attributes to be invoked
            multiple times per marked sub

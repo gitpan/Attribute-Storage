@@ -1,7 +1,7 @@
 #  You may distribute under the terms of either the GNU General Public License
 #  or the Artistic License (the same terms as Perl itself)
 #
-#  (C) Paul Evans, 2008-2010 -- leonerd@leonerd.org.uk
+#  (C) Paul Evans, 2008-2012 -- leonerd@leonerd.org.uk
 
 package Attribute::Storage;
 
@@ -10,10 +10,12 @@ use warnings;
 
 use Carp;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 require XSLoader;
 XSLoader::load( __PACKAGE__, $VERSION );
+
+use B qw( svref_2object );
 
 =head1 NAME
 
@@ -34,9 +36,7 @@ references
     return $title;
  }
 
- 1;
-
- package main
+ package main;
 
  use Attribute::Storage qw( get_subattr );
  use My::Package;
@@ -67,11 +67,14 @@ C<Attribute::Handlers> simply invokes the handling code.
 =item *
 
 C<Attribute::Storage> immediately executes the attribute handling code at
-compile-time.  C<Attribute::Handlers> defers invocation so it can look up the
-symbolic name of the sub the attribute is attached to. An upshot here is that
-the invoked code in C<Attribute::Storage> does not know the name of the sub it
-attaches to. Another is that C<Attribute::Storage> works just as well on
-anonymous subs as named ones.
+compile-time. C<Attribute::Handlers> defers invocation so it can look up the
+symbolic name of the sub the attribute is attached to. C<Attribute::Storage>
+uses L<B> to provide the name of the sub at invocation time, using the name of
+the underlying C<GV>.
+
+=item * 
+
+C<Attribute::Storage> works just as well on anonymous subs as named ones.
 
 =item *
 
@@ -89,12 +92,21 @@ sub import
    my $class = shift;
    return unless $class eq __PACKAGE__;
 
+   # TODO
+   #Attribute::Lexical->import( 'CODE:ATTR' => \&handle_attr_ATTR );
+
    my $caller = caller;
 
    my $sub = sub {
       my ( $pkg, $ref, @attrs ) = @_;
-      return @attrs unless ref $ref eq "CODE";
-      grep { handle_attr( $pkg, $ref, $_ ) } @attrs;
+      my $caller = [ caller(1) ];
+      grep {
+         my ( $attrname, $opts ) = m/^([A-Za-z_][0-9A-Za-z_]*)(?:\((.*)\))?$/;
+         defined $opts or $opts = "";
+         $attrname eq "ATTR" ?
+            handle_attr_ATTR( $ref, $attrname, $opts, $caller ) :
+            handle_attr     ( $ref, $attrname, $opts, $caller );
+      } @attrs;
    };
 
    no strict 'refs';
@@ -174,6 +186,22 @@ For this, add the C<RAWDATA> flag to the C<ATTR()> list.
 
  sub thingy :Title(Here is the title for thingy) { ... }
 
+To obtain the name of the function to which the attribute is being applied,
+use the C<NAME> flag to the C<ATTR()> list.
+
+ sub Callable :ATTR(CODE,NAME)
+ {
+    my $package = shift;
+    my ( $subname, @args ) = @_;
+
+    print "The Callable attribute is being applied to $package :: $subname\n";
+
+    return;
+ }
+
+When applied to an anonymous function (C<sub { ... }>), the name will appear
+as C<__ANON__>.
+
 Normally it is an error to attempt to apply the same attribute more than once
 to the same function. Sometimes however, it would make sense for an attribute
 to be applied many times. If the C<ATTR()> list is given the C<MULTI> flag,
@@ -226,26 +254,44 @@ required.
 
 =cut
 
+sub handle_attr_ATTR
+{
+   my ( $ref, undef, $opts, $caller ) = @_;
+
+   my $attrs = _get_attr_hash( $ref, 1 );
+
+   my %type;
+   foreach ( split m/\s*,\s*/, $opts ) {
+      m/^CODE$/ and next;
+
+      m/^SCALAR|HASH|ARRAY$/ and 
+         croak "Only CODE attributes are supported currently";
+
+      m/^RAWDATA$/ and
+         ( $type{raw} = 1 ), next;
+
+      m/^MULTI$/ and
+         ( $type{multi} = 1 ), next;
+
+      m/^NAME$/ and
+         ( $type{name} = 1 ), next;
+
+      croak "Unrecognised attribute option $_";
+   }
+
+   $attrs->{ATTR} = \%type;
+
+   return 0;
+}
+
 sub handle_attr
 {
-   my ( $package, $ref, $attr ) = @_;
+   my ( $ref, $attrname, $opts, $caller ) = @_;
+   my $package = $caller->[0];
 
-   my ( $attrname, $opts ) = $attr =~ m/^([a-zA-Z_]+)(\(.*\))?$/s or return 1;
-
-   if( defined $opts ) {
-      s/^\(//, s/\)$// for $opts; # trim wrapping ()
-   }
-
-   my $cv;
-   my $type;
-   if( $attrname eq "ATTR" ) {
-      $type = { raw => 1 };
-   }
-   else {
-      $cv = $package->can( $attrname ) or return 1;
-      my $attrs = _get_attr_hash( $cv, 0 ) or return 1;
-      $type = $attrs->{ATTR} or return 1;
-   }
+   my $cv = $package->can( $attrname ) or return 1;
+   my $cvattrs = _get_attr_hash( $cv, 0 ) or return 1;
+   my $type = $cvattrs->{ATTR} or return 1;
 
    my @opts;
    if( $type->{raw} ) {
@@ -265,6 +311,10 @@ sub handle_attr
 
    my $attrs = _get_attr_hash( $ref, 1 );
 
+   if( $type->{name} ) {
+      unshift @opts, svref_2object( $ref )->GV->NAME;
+   }
+
    if( $type->{multi} ) {
       unshift @opts, $attrs->{$attrname};
    }
@@ -273,32 +323,11 @@ sub handle_attr
          croak "Already have the $attrname attribute";
    }
 
-   if( $attrname eq "ATTR" ) {
-      my %type;
-      foreach ( split m/\s*,\s*/, $opts[0] ) {
-         m/^CODE$/ and next;
+   my $value = eval { $cv->( $package, @opts ) };
+   die $@ if $@;
+   defined $value or return 1;
 
-         m/^SCALAR|HASH|ARRAY$/ and 
-            croak "Only CODE attributes are supported currently";
-
-         m/^RAWDATA$/ and
-            ( $type{raw} = 1 ), next;
-
-         m/^MULTI$/ and
-            ( $type{multi} = 1 ), next;
-
-         croak "Unrecognised attribute option $_";
-      }
-
-      $attrs->{ATTR} = \%type;
-   }
-   else {
-      my $value = eval { $cv->( $package, @opts ) };
-      die $@ if $@;
-      defined $value or return 1;
-
-      $attrs->{$attrname} = $value;
-   }
+   $attrs->{$attrname} = $value;
 
    return 0;
 }
@@ -366,11 +395,10 @@ sub get_subattr
    return $attrhash->{$attr};
 }
 
-# Keep perl happy; keep Britain tidy
-1;
-
-__END__
-
 =head1 AUTHOR
 
 Paul Evans <leonerd@leonerd.org.uk>
+
+=cut
+
+0x55AA;

@@ -1,5 +1,5 @@
 NAME
-    "Attribute::Storage" - declare and retrieve named attributes about CODE
+    `Attribute::Storage' - declare and retrieve named attributes about CODE
     references
 
 SYNOPSIS
@@ -15,9 +15,7 @@ SYNOPSIS
         return $title;
      }
 
-     1;
-
-     package main
+     package main;
 
      use Attribute::Storage qw( get_subattr );
      use My::Package;
@@ -35,24 +33,25 @@ DESCRIPTION
     package that defines the code attributes, can then use them to annotate
     subs.
 
-    This is similar to "Attribute::Handlers", with the following key
+    This is similar to `Attribute::Handlers', with the following key
     differences:
 
-    *   "Attribute::Storage" will store the value returned by the attribute
+    *   `Attribute::Storage' will store the value returned by the attribute
         handling code, and provides convenient lookup functions to retrieve
-        it later. "Attribute::Handlers" simply invokes the handling code.
+        it later. `Attribute::Handlers' simply invokes the handling code.
 
-    *   "Attribute::Storage" immediately executes the attribute handling
-        code at compile-time. "Attribute::Handlers" defers invocation so it
+    *   `Attribute::Storage' immediately executes the attribute handling
+        code at compile-time. `Attribute::Handlers' defers invocation so it
         can look up the symbolic name of the sub the attribute is attached
-        to. An upshot here is that the invoked code in "Attribute::Storage"
-        does not know the name of the sub it attaches to. Another is that
-        "Attribute::Storage" works just as well on anonymous subs as named
+        to. `Attribute::Storage' uses B to provide the name of the sub at
+        invocation time, using the name of the underlying `GV'.
+
+    *   `Attribute::Storage' works just as well on anonymous subs as named
         ones.
 
-    *   "Attribute::Storage" is safe to use on code that will be reloaded,
-        because it executes handlers immediately. "Attribute::Handlers" will
-        only execute handlers at defined phases such as "BEGIN" or "INIT",
+    *   `Attribute::Storage' is safe to use on code that will be reloaded,
+        because it executes handlers immediately. `Attribute::Handlers' will
+        only execute handlers at defined phases such as `BEGIN' or `INIT',
         and cannot reexecute the handlers in a file once it has been
         reloaded.
 
@@ -61,11 +60,11 @@ ATTRIBUTES
     using a marked subroutine, in a way similar to Attribute::Handlers. When
     a sub in the using package is marked with such an attribute, the code is
     executed, passing in the arguments. Whatever it returns is stored, to be
-    returned later when queried by "get_subattr" or "get_subattrs". The
+    returned later when queried by `get_subattr' or `get_subattrs'. The
     return value must be defined, or else the attribute will be marked as a
     compile error for perl to handle accordingly.
 
-    Only "CODE" attributes are supported at present.
+    Only `CODE' attributes are supported at present.
 
      sub AttributeName :ATTR(CODE)
      {
@@ -111,7 +110,7 @@ ATTRIBUTES
 
     It is possible to create attributes that do not parse their argument as
     a perl list expression, instead they just pass the plain string as a
-    single argument. For this, add the "RAWDATA" flag to the "ATTR()" list.
+    single argument. For this, add the `RAWDATA' flag to the `ATTR()' list.
 
      sub Title :ATTR(CODE,RAWDATA)
      {
@@ -123,12 +122,28 @@ ATTRIBUTES
 
      sub thingy :Title(Here is the title for thingy) { ... }
 
+    To obtain the name of the function to which the attribute is being
+    applied, use the `NAME' flag to the `ATTR()' list.
+
+     sub Callable :ATTR(CODE,NAME)
+     {
+        my $package = shift;
+        my ( $subname, @args ) = @_;
+
+        print "The Callable attribute is being applied to $package :: $subname\n";
+
+        return;
+     }
+
+    When applied to an anonymous function (`sub { ... }'), the name will
+    appear as `__ANON__'.
+
     Normally it is an error to attempt to apply the same attribute more than
     once to the same function. Sometimes however, it would make sense for an
-    attribute to be applied many times. If the "ATTR()" list is given the
-    "MULTI" flag, then applying it more than once will be allowed. Each
+    attribute to be applied many times. If the `ATTR()' list is given the
+    `MULTI' flag, then applying it more than once will be allowed. Each
     invocation of the handling code will be given the previous value that
-    was returned, or "undef" for the first time. It is up to the code to
+    was returned, or `undef' for the first time. It is up to the code to
     perform whatever merging logic is required.
 
      sub Description :ATTR(CODE,MULTI,RAWDATA)
@@ -187,7 +202,7 @@ FUNCTIONS
   $value = get_subattr( $sub, $attrname )
     Returns the value of a single named attribute on the given sub. The sub
     should either be passed as a CODE reference, or as a name in the
-    caller's package. If the attribute is not defined, "undef" is returned.
+    caller's package. If the attribute is not defined, `undef' is returned.
 
 AUTHOR
     Paul Evans <leonerd@leonerd.org.uk>
