@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Test::More tests => 7 + 1; # Test::NoWarnings adds one
+use Test::More tests => 9 + 1; # Test::NoWarnings adds one
 use Test::NoWarnings;
 
 use Attribute::Storage qw( get_subattr get_subattrs );
@@ -48,3 +48,16 @@ is( get_subattr( $coderef, "Title" ), "Dynamic code", 'get_subattr Title on anon
 # Reported to perl-p5p@
 $coderef = eval "my \$dummy = sub :Title('eval code') { 2 }" or die $@;
 is( get_subattr( $coderef, "Title" ), "eval code", 'get_subattr Title on anon CODE from eval' );
+
+$coderef = sub { 1 };
+attributes->import( main => $coderef, "Title('attributes import')" );
+is( get_subattr( $coderef, "Title" ), "attributes import", 'get_subattr Title on anon CODE from attributes->import application' );
+
+{
+   package OtherPackage;
+
+   $coderef = sub { 2 };
+   attributes->import( main => $coderef, "Title('import in other package')" );
+}
+
+is( get_subattr( $coderef, "Title" ), "import in other package", 'get_subattr Title on anon CODE ref in another package using attributes->import' );

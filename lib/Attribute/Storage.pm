@@ -10,7 +10,7 @@ use warnings;
 
 use Carp;
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 require XSLoader;
 XSLoader::load( __PACKAGE__, $VERSION );
@@ -99,13 +99,12 @@ sub import
 
    my $sub = sub {
       my ( $pkg, $ref, @attrs ) = @_;
-      my $caller = [ caller(1) ];
       grep {
-         my ( $attrname, $opts ) = m/^([A-Za-z_][0-9A-Za-z_]*)(?:\((.*)\))?$/;
+         my ( $attrname, $opts ) = m/^([A-Za-z_][0-9A-Za-z_]*)(?:\((.*)\))?$/s;
          defined $opts or $opts = "";
          $attrname eq "ATTR" ?
-            handle_attr_ATTR( $ref, $attrname, $opts, $caller ) :
-            handle_attr     ( $ref, $attrname, $opts, $caller );
+            handle_attr_ATTR( $pkg, $ref, $attrname, $opts ) :
+            handle_attr     ( $pkg, $ref, $attrname, $opts );
       } @attrs;
    };
 
@@ -256,7 +255,7 @@ required.
 
 sub handle_attr_ATTR
 {
-   my ( $ref, undef, $opts, $caller ) = @_;
+   my ( $pkg, $ref, undef, $opts ) = @_;
 
    my $attrs = _get_attr_hash( $ref, 1 );
 
@@ -286,10 +285,9 @@ sub handle_attr_ATTR
 
 sub handle_attr
 {
-   my ( $ref, $attrname, $opts, $caller ) = @_;
-   my $package = $caller->[0];
+   my ( $pkg, $ref, $attrname, $opts ) = @_;
 
-   my $cv = $package->can( $attrname ) or return 1;
+   my $cv = $pkg->can( $attrname ) or return 1;
    my $cvattrs = _get_attr_hash( $cv, 0 ) or return 1;
    my $type = $cvattrs->{ATTR} or return 1;
 
@@ -323,7 +321,7 @@ sub handle_attr
          croak "Already have the $attrname attribute";
    }
 
-   my $value = eval { $cv->( $package, @opts ) };
+   my $value = eval { $cv->( $pkg, @opts ) };
    die $@ if $@;
    defined $value or return 1;
 

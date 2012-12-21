@@ -19,9 +19,9 @@ name: Attribute-Storage
 provides:
   Attribute::Storage:
     file: lib/Attribute/Storage.pm
-    version: 0.07
+    version: 0.08
 requires:
   XSLoader: 0
 resources:
   license: http://dev.perl.org/licenses/
-version: 0.07
+version: 0.08
