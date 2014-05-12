@@ -13,7 +13,7 @@ my $build = Module::Build->new(
       'XSLoader' => 0,
    },
    build_requires => {
-      'Test::More'       => 0,
+      'Test::More'       => '0.88', # done_testing
       'Test::NoWarnings' => 0,
    },
    license => 'perl',

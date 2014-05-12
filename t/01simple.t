@@ -1,8 +1,10 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 use strict;
-use Test::More tests => 9 + 1; # Test::NoWarnings adds one
-use Test::NoWarnings;
+use warnings;
+
+use Test::More;
+use Test::NoWarnings ();
 
 use Attribute::Storage qw( get_subattr get_subattrs );
 
@@ -61,3 +63,6 @@ is( get_subattr( $coderef, "Title" ), "attributes import", 'get_subattr Title on
 }
 
 is( get_subattr( $coderef, "Title" ), "import in other package", 'get_subattr Title on anon CODE ref in another package using attributes->import' );
+
+Test::NoWarnings::had_no_warnings;
+done_testing;

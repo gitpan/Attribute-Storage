@@ -204,6 +204,67 @@ FUNCTIONS
     should either be passed as a CODE reference, or as a name in the
     caller's package. If the attribute is not defined, `undef' is returned.
 
+  $sub = apply_subattrs( @attrs_kvlist, $sub )
+    A utility function to help apply attributes dynamically to the given
+    CODE reference. The CODE reference is given last so that calls to the
+    function appear similar in visual style to the same applied at
+    compiletime.
+
+     apply_subattrs
+        Title => "Here is my title",
+        sub { return $title };
+
+    Is equivalent to
+
+     sub :Title(Here is my title) { return $title }
+
+    except that because its arguments are evaluated at runtime, they can be
+    calculated by other code in ways that the compiletime version cannot.
+
+    As the attributes are given in a key-value pair list, it is allowed to
+    apply the same attribute multiple times; and the attributes are applied
+    in the order given. The value of each attribute should be a plain string
+    exactly as it would appear between the parentheses. Specifically, if the
+    attribute does not use the `RAWDATA' flag, it should be a valid perl
+    expression. As this is still evaluated using an `eval()' call, take care
+    when handling potentially-unsafe or user-supplied data.
+
+  $sub = apply_subattrs_for_pkg( $pkg, @attrs_kvlist, $sub )
+    As `apply_subattrs' but allows passing a specific package name, rather
+    than using `caller'.
+
+  %subs = find_subs_with_attr( $pkg, $attrname, %opts )
+    A utility function to find CODE references in the given package that
+    have the name attribute applied. The symbol table is checked for the
+    given package, looking for CODE references that have the named attribute
+    applied. These are returned in a key-value list, where the key gives the
+    name of the function and the value is a CODE reference to it.
+
+    `$pkg' can also be a reference to an array containing multiple package
+    names, which will be searched in order with earlier ones taking
+    precedence over later ones. This, for example, allows for subclass
+    searching over an entire class heirarchy of packages, via the use of
+    mro:
+
+     %subs = find_subs_with_attr( [ mro::get_linear_isa $class ], $attrname );
+
+    Takes the following named options:
+
+    matching => Regexp | CODE
+            If present, gives a filter regexp or CODE reference to apply to
+            symbol names.
+
+             $name =~ $matching
+             $matching->( local $_ = $name )
+
+    filter => CODE
+            If present, gives a filter CODE reference to apply to the
+            function references before they are accepted as results. Note
+            that this allows the possibility that the first match for a
+            given method name to be rejected, while later ones are accepted.
+
+             $filter->( $cv, $name, $package )
+
 AUTHOR
     Paul Evans <leonerd@leonerd.org.uk>
 

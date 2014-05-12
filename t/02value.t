@@ -1,7 +1,9 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 use strict;
-use Test::More tests => 1;
+use warnings;
+
+use Test::More;
 
 use Attribute::Storage qw( get_subattr );
 
@@ -21,3 +23,5 @@ sub myfunc :Number(1,2,3,4,5)
 }
 
 is( get_subattr( \&myfunc, "Number" ), 15, 'get_subattr Number on \&myfunc' );
+
+done_testing;

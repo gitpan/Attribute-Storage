@@ -1,7 +1,7 @@
 #  You may distribute under the terms of either the GNU General Public License
 #  or the Artistic License (the same terms as Perl itself)
 #
-#  (C) Paul Evans, 2008-2012 -- leonerd@leonerd.org.uk
+#  (C) Paul Evans, 2008-2014 -- leonerd@leonerd.org.uk
 
 package Attribute::Storage;
 
@@ -10,7 +10,7 @@ use warnings;
 
 use Carp;
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 require XSLoader;
 XSLoader::load( __PACKAGE__, $VERSION );
@@ -391,6 +391,134 @@ sub get_subattr
 
    my $attrhash = _get_attr_hash( $cv, 0 ) or return undef;
    return $attrhash->{$attr};
+}
+
+=head2 $sub = apply_subattrs( @attrs_kvlist, $sub )
+
+A utility function to help apply attributes dynamically to the given CODE
+reference. The CODE reference is given last so that calls to the function
+appear similar in visual style to the same applied at compiletime.
+
+ apply_subattrs
+    Title => "Here is my title",
+    sub { return $title };
+
+Is equivalent to
+
+ sub :Title(Here is my title) { return $title }
+
+except that because its arguments are evaluated at runtime, they can be
+calculated by other code in ways that the compiletime version cannot.
+
+As the attributes are given in a key-value pair list, it is allowed to apply
+the same attribute multiple times; and the attributes are applied in the order
+given. The value of each attribute should be a plain string exactly as it
+would appear between the parentheses. Specifically, if the attribute does not
+use the C<RAWDATA> flag, it should be a valid perl expression. As this is
+still evaluated using an C<eval()> call, take care when handling
+potentially-unsafe or user-supplied data.
+
+=head2 $sub = apply_subattrs_for_pkg( $pkg, @attrs_kvlist, $sub )
+
+As C<apply_subattrs> but allows passing a specific package name, rather than
+using C<caller>.
+
+=cut
+
+sub apply_subattrs_for_pkg
+{
+   my $pkg = shift;
+   my $sub = pop;
+
+   while( @_ ) {
+      my $attr = shift;
+      my $value = shift;
+      attributes->import( $pkg, $sub, "$attr($value)" );
+   }
+
+   return $sub;
+}
+
+sub apply_subattrs
+{
+   apply_subattrs_for_pkg( scalar caller, @_ );
+}
+
+=head2 %subs = find_subs_with_attr( $pkg, $attrname, %opts )
+
+A utility function to find CODE references in the given package that have the
+name attribute applied. The symbol table is checked for the given package,
+looking for CODE references that have the named attribute applied. These are
+returned in a key-value list, where the key gives the name of the function and
+the value is a CODE reference to it.
+
+C<$pkg> can also be a reference to an array containing multiple package names,
+which will be searched in order with earlier ones taking precedence over later
+ones. This, for example, allows for subclass searching over an entire class
+heirarchy of packages, via the use of L<mro>:
+
+ %subs = find_subs_with_attr( [ mro::get_linear_isa $class ], $attrname );
+
+Takes the following named options:
+
+=over 8
+
+=item matching => Regexp | CODE
+
+If present, gives a filter regexp or CODE reference to apply to symbol names.
+
+ $name =~ $matching
+ $matching->( local $_ = $name )
+
+=item filter => CODE
+
+If present, gives a filter CODE reference to apply to the function references
+before they are accepted as results. Note that this allows the possibility
+that the first match for a given method name to be rejected, while later ones
+are accepted.
+
+ $filter->( $cv, $name, $package )
+
+=back
+
+=cut
+
+sub find_subs_with_attr
+{
+   my ( $pkg, $attrname, %opts ) = @_;
+
+   my $matching = $opts{matching};
+   $matching = do {
+      my $re = $matching;
+      sub { $_ =~ $re }
+   } if ref $matching eq "Regexp";
+
+   my $filter = $opts{filter};
+
+   my %ret;
+
+   foreach $pkg ( ref $pkg ? @$pkg : $pkg ) {
+      no strict 'refs';
+
+      foreach my $symname ( keys %{$pkg."::"} ) {
+         # First definition wins
+         exists $ret{$symname} and next;
+
+         # Perl seems to cache mechods in derived class symbol tables
+         # Skip these entries
+         my $cv = $pkg->can( $symname ) or next;
+
+         $matching and not $matching->( local $_ = $symname ) and next;
+
+         next unless defined get_subattr( $cv, $attrname );
+
+         $filter and not $filter->( $cv, $symname, $pkg ) and next;
+
+         $ret{$symname} = $cv;
+      }
+   }
+
+   return %ret;
 }
 
 =head1 AUTHOR

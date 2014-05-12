@@ -1,7 +1,9 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 use strict;
-use Test::More tests => 3;
+use warnings;
+
+use Test::More;
 
 use Attribute::Storage qw( get_subattr );
 
@@ -28,3 +30,5 @@ is_deeply( get_subattr( "myfunc", "Value" ), [ "first generation" ], 'First gene
 
 is_deeply( get_subattr( "myfunc", "Value" ), [ "second generation" ], 'Second generation of attribute' );
 is_deeply( \@destroyed, [ "first generation" ], 'First generation got destroyed' );
+
+done_testing;

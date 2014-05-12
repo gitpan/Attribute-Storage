@@ -1,7 +1,9 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 use strict;
-use Test::More tests => 2;
+use warnings;
+
+use Test::More;
 
 use Attribute::Storage qw( get_subattr );
 
@@ -25,3 +27,5 @@ is_deeply( get_subattr( \&myfunc, "Foo" ),
 is_deeply( get_subattr( sub :Foo("green") { }, "Foo" ),
    { package => "main", subname => "__ANON__", values => [ "green" ] },
    'sub name for :ATTR(NAME) on anonymous function' );
+
+done_testing;

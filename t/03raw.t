@@ -1,7 +1,9 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 use strict;
-use Test::More tests => 1;
+use warnings;
+
+use Test::More;
 
 use Attribute::Storage qw( get_subattr );
 
@@ -19,3 +21,5 @@ sub myfunc :Title(Here is my raw text)
 }
 
 is( get_subattr( \&myfunc, "Title" ), "Here is my raw text", 'get_subattr Title on \&myfunc' );
+
+done_testing;

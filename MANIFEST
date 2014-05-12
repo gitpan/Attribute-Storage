@@ -15,4 +15,6 @@ t/03raw.t
 t/04free.t
 t/05multi.t
 t/06subname.t
+t/07apply.t
+t/08find.t
 t/99pod.t

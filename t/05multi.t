@@ -1,7 +1,9 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 use strict;
-use Test::More tests => 3;
+use warnings;
+
+use Test::More;
 
 use Attribute::Storage qw( get_subattr );
 
@@ -26,3 +28,5 @@ like( $@, qr/^Already have the One attribute /, 'Applying :One multiple times di
 my $coderef = eval "my \$dummy = sub :Many :Many :Many { 'XXX' }";
 ok( !$@, 'Applying :Many succeeds' );
 is( get_subattr( $coderef, "Many" ), 3, 'Value of Many is 3' );
+
+done_testing;
